@@ -1,4 +1,5 @@
 const usersRepository = require('./users-repository');
+const { errorResponder, errorTypes } = require('../../../core/errors');
 const { hashPassword } = require('../../../utils/password');
 const { passwordMatched } = require('../../../utils/password');
 
@@ -117,38 +118,30 @@ async function deleteUser(id) {
   return true;
 }
 
-async function updatePassword(userId, newPassword) {
-  const user = await usersRepository.getUser(userId);
+async function updatePassword(id, oldPassword, newPassword) {
+  const user = await usersRepository.getUser(id);
+
   if (!user) {
     throw errorResponder(errorTypes.USER_NOT_FOUND, 'User not found');
   }
+  const isPasswordValid = await passwordMatched(oldPassword, user.password);
+
+  if (!isPasswordValid) {
+    throw errorResponder(
+      errorTypes.INVALID_CREDENTIALS,
+      'Incorrect old password'
+    );
+  }
+
+  const hashedPassword = await hashPassword(newPassword);
 
   try {
-    const passwordMatched = await passwordMatched(
-      newPassword,
-      user.hashedPassword
-    );
-
-    if (!passwordMatched) {
-      throw errorResponder(
-        errorTypes.INVALID_CREDENTIALS,
-        'Incorrect old password'
-      );
-    }
-
-    // Update user's password in the database
-    const success = await usersRepository.updatePassword(userId, newPassword);
-    if (!success) {
-      throw errorResponder(
-        errorTypes.DATABASE_ERROR,
-        'Failed to update password'
-      );
-    }
-
-    return true;
-  } catch (error) {
-    throw error;
+    await usersRepository.updatePassword(id, hashedPassword);
+  } catch (err) {
+    return null;
   }
+
+  return true;
 }
 
 module.exports = {

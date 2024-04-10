@@ -103,7 +103,11 @@ async function ChangePassword(request, response, next) {
       );
     }
 
-    const success = await usersService.updatePassword(id, newPassword);
+    const success = await usersService.updatePassword(
+      id,
+      oldPassword,
+      newPassword
+    );
     if (!success) {
       throw errorResponder(
         errorTypes.UNPROCESSABLE_ENTITY,
